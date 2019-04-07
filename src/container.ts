@@ -22,6 +22,7 @@ import { SearchView } from './views/searchView';
 import { ViewCommands } from './views/viewCommands';
 import { VslsController } from './vsls/vsls';
 import { SettingsWebview } from './webviews/settingsWebview';
+import { TimelineWebview } from './webviews/timelineWebview';
 import { WelcomeWebview } from './webviews/welcomeWebview';
 
 export class Container {
@@ -50,6 +51,7 @@ export class Container {
         context.subscriptions.push((this._codeLensController = new GitCodeLensController()));
         context.subscriptions.push((this._keyboard = new Keyboard()));
         context.subscriptions.push((this._settingsWebview = new SettingsWebview()));
+        context.subscriptions.push((this._timelineWebview = new TimelineWebview()));
         context.subscriptions.push((this._welcomeWebview = new WelcomeWebview()));
 
         if (config.views.compare.enabled) {
@@ -250,6 +252,11 @@ export class Container {
     private static _statusBarController: StatusBarController;
     static get statusBar() {
         return this._statusBarController;
+    }
+
+    private static _timelineWebview: TimelineWebview;
+    static get timelineWebview() {
+        return this._timelineWebview;
     }
 
     private static _tracker: GitDocumentTracker;
