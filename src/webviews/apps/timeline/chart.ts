@@ -48,6 +48,12 @@ export class TimelineChart {
                     }
                 },
                 y: {
+                    type: 'category',
+                    max: 0,
+                    padding: {
+                        top: 10,
+                        bottom: 100
+                    },
                     show: true,
                     tick: {
                         show: false,
@@ -56,8 +62,8 @@ export class TimelineChart {
                         text: {
                             show: true
                         }
-                    } as any
-                },
+                    }
+                } as any,
                 y2: {
                     show: true,
                     label: {
@@ -73,18 +79,22 @@ export class TimelineChart {
                 sensitivity: 25 //Number.MAX_SAFE_INTEGER
             } as any,
             grid: {
+                front: false,
+                lines: {
+                    front: false
+                },
                 x: {
                     show: true
                 },
                 y: {
-                    padding: { bottom: 100 },
-                    show: true,
-                    ticks: this._authorsByIndex === undefined ? 0 : Object.keys(this._authorsByIndex).length
-                } as any
+                    show: true
+                }
             },
             legend: {
-                show: true
-            },
+                show: true,
+                // equally: true,
+                padding: 10
+            } as any,
             padding: {
                 top: 10,
                 right: 60,
@@ -165,7 +175,7 @@ export class TimelineChart {
     private onChartTooltipName(name: string, ratio: any, id: string, index: number) {
         if (this._commitsByDate === undefined) return undefined!;
 
-        if (id === 'adds' || id === 'deletes') return name;
+        if (id === 'adds' || id === 'changes' || id === 'deletes') return name;
 
         const x = (this._chart!.data(id) as any)[0].values[index].x;
         const commit = this._commitsByDate.get(x);
@@ -175,7 +185,7 @@ export class TimelineChart {
     private onChartTooltipValue(value: any, ratio: any, id: string, index: number) {
         if (this._commitsByDate === undefined) return undefined!;
 
-        if (id === 'adds' || id === 'deletes') {
+        if (id === 'adds' || id === 'changes' || id === 'deletes') {
             return value === 0 ? undefined! : value;
         }
 
@@ -203,47 +213,80 @@ export class TimelineChart {
         this._authorsByIndex = {};
         this._indexByAuthors = {};
         this._commitsByDate = new Map();
-        let index = -9;
+        let index = 0;
 
-        let datum;
+        let datum: TimelineDatum;
         let author;
         let date;
         let added;
+        let changed;
         let deleted;
 
+        const repo = !data.uri;
+
         for (datum of data.dataset.reverse()) {
-            ({ author, date, added, deleted } = datum);
+            ({ author, date, added, changed, deleted } = datum);
 
             date = new Date(date);
 
             if (this._indexByAuthors[author] === undefined) {
-                index--;
                 this._indexByAuthors[author] = index;
                 this._authorsByIndex[index] = author;
+                index--;
             }
 
             const x = 'time';
             if (series[x] === undefined) {
                 series[x] = [];
-                series['adds'] = [];
-                series['deletes'] = [];
 
-                xs['adds'] = x;
-                xs['deletes'] = x;
+                if (repo) {
+                    series['adds'] = [];
+                    series['changes'] = [];
+                    series['deletes'] = [];
 
-                axes['adds'] = 'y2';
-                axes['deletes'] = 'y2';
+                    xs['adds'] = x;
+                    xs['changes'] = x;
+                    xs['deletes'] = x;
 
-                names['adds'] = 'Added Lines';
-                names['deletes'] = 'Deleted Lines';
+                    axes['adds'] = 'y2';
+                    axes['changes'] = 'y2';
+                    axes['deletes'] = 'y2';
 
-                colors['adds'] = 'rgba(73, 190, 71, 1)';
-                colors['deletes'] = 'rgba(195, 32, 45, 1)';
+                    names['adds'] = 'Added Files';
+                    names['changes'] = 'Changed Files';
+                    names['deletes'] = 'Deleted Files';
 
-                types['adds'] = 'bar';
-                types['deletes'] = 'bar';
+                    colors['adds'] = 'rgba(73, 190, 71, 1)';
+                    colors['changes'] = '#0496FF';
+                    colors['deletes'] = 'rgba(195, 32, 45, 1)';
 
-                groups.push(['adds', 'deletes']);
+                    types['adds'] = 'bar';
+                    types['changes'] = 'bar';
+                    types['deletes'] = 'bar';
+
+                    groups.push(['adds', 'changes', 'deletes']);
+                }
+                else {
+                    series['adds'] = [];
+                    series['deletes'] = [];
+
+                    xs['adds'] = x;
+                    xs['deletes'] = x;
+
+                    axes['adds'] = 'y2';
+                    axes['deletes'] = 'y2';
+
+                    names['adds'] = 'Added Lines';
+                    names['deletes'] = 'Deleted Lines';
+
+                    colors['adds'] = 'rgba(73, 190, 71, 1)';
+                    colors['deletes'] = 'rgba(195, 32, 45, 1)';
+
+                    types['adds'] = 'bar';
+                    types['deletes'] = 'bar';
+
+                    groups.push(['adds', 'deletes']);
+                }
             }
 
             const authorX = `${x}.${author}`;
@@ -262,6 +305,9 @@ export class TimelineChart {
 
             series[x].push(date);
             series['adds'].push(added);
+            if (repo) {
+                series['changes'].push(changed);
+            }
             series['deletes'].push(deleted);
 
             series[authorX].push(date);
@@ -270,8 +316,8 @@ export class TimelineChart {
             this._commitsByDate.set(date, datum);
         }
 
-        this._chart!.config('title.text', data.fileName, false);
-        this._chart!.config('grid.y.ticks', Object.keys(this._authorsByIndex!).length, false);
+        this._chart!.config('title.text', data.title, false);
+        this._chart!.config('axis.y.tick.values', Object.keys(this._authorsByIndex!).map(i => Number(i)), false);
         this._chart!.groups(groups);
         this._chart!.load({
             json: series,
